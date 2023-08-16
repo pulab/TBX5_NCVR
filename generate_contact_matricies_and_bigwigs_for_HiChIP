@@ -1,0 +1,128 @@
+samtools faidx GRCm38.primary_assembly.genome.fa
+
+cut -f1,2 GRCm38.primary_assembly.genome.fa > mm10.genome
+
+
+bwa index GRCm38.primary_assembly.genome.fa
+
+##Alignment
+
+bwa mem -5SP -T0 -t16 GRCm38.primary_assembly.genome.fa Control_HiChip_1_R1.fastq.gz Control_HiChip_1_R2.fastq.gz | pairtools parse --min-mapq 40 --walks-policy 5unique --max-inter-align-gap 30 --nproc-in 8 --nproc-out 8 --chroms-path mm10.genome | pairtools sort --tmpdir=/Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/tmp/ --nproc 16|pairtools dedup --nproc-in 8 --nproc-out 8 --mark-dups --output-stats stats.txt|pairtools split --nproc-in 8 --nproc-out 8 --output-pairs mapped.pairs --output-sam -|samtools view -bS -@16 | samtools sort -@16 -o C1_mapped.PT.bam;samtools index C1_mapped.PT.bam
+
+bwa mem -5SP -T0 -t16 GRCm38.primary_assembly.genome.fa Control_HiChip_2_R1.fastq.gz Control_HiChip_2_R2.fastq.gz | pairtools parse --min-mapq 40 --walks-policy 5unique --max-inter-align-gap 30 --nproc-in 8 --nproc-out 8 --chroms-path mm10.genome | pairtools sort --tmpdir=/Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/tmp/ --nproc 16|pairtools dedup --nproc-in 8 --nproc-out 8 --mark-dups --output-stats stats.txt|pairtools split --nproc-in 8 --nproc-out 8 --output-pairs mapped.pairs --output-sam -|samtools view -bS -@16 | samtools sort -@16 -o C2_mapped.PT.bam;samtools index C2_mapped.PT.bam
+
+bwa mem -5SP -T0 -t16 GRCm38.primary_assembly.genome.fa KO_HiChip_1_R1.fastq.gz KO_HiChip_1_R2.fastq.gz | pairtools parse --min-mapq 40 --walks-policy 5unique --max-inter-align-gap 30 --nproc-in 8 --nproc-out 8 --chroms-path mm10.genome | pairtools sort --tmpdir=/Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/tmp/ --nproc 16|pairtools dedup --nproc-in 8 --nproc-out 8 --mark-dups --output-stats stats.txt|pairtools split --nproc-in 8 --nproc-out 8 --output-pairs mapped.pairs --output-sam -|samtools view -bS -@16 | samtools sort -@16 -o KO1_mapped.PT.bam;samtools index KO1_mapped.PT.bam
+
+bwa mem -5SP -T0 -t16 GRCm38.primary_assembly.genome.fa KO_HiChip_2_R1.fastq.gz KO_HiChip_2_R2.fastq.gz | pairtools parse --min-mapq 40 --walks-policy 5unique --max-inter-align-gap 30 --nproc-in 8 --nproc-out 8 --chroms-path mm10.genome | pairtools sort --tmpdir=/Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/tmp/ --nproc 16|pairtools dedup --nproc-in 8 --nproc-out 8 --mark-dups --output-stats stats.txt|pairtools split --nproc-in 8 --nproc-out 8 --output-pairs mapped.pairs --output-sam -|samtools view -bS -@16 | samtools sort -@16 -o KO2_mapped.PT.bam;samtools index KO2_mapped.PT.bam
+
+
+##Make stats table
+cd /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_1/
+python3 /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_1/get_qc.py -p stats.txt >statstbl.txt
+
+cd /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_2/
+python3 /Users/masonsweat/HiChiP/get_qc.py -p stats.txt >statstbl.txt
+
+cd /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/KO_1/
+python3 /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/KO_1/get_qc.py -p stats.txt >statstbl.txt
+
+cd /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/KO_2/
+python3 /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/KO_2/get_qc.py -p stats.txt >statstbl.txt
+
+##calculating enrichment stats
+/Users/masonsweat/HiChiP/enrichment_stats.sh -g /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/mm10.genome -b /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_1/C1_mapped.PT.bam -p /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_1_temporary_peaks.narrowpeak -t 4 -x C1
+
+/Users/masonsweat/HiChiP/enrichment_stats.sh -g /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/mm10.genome -b /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_2/C2_mapped.PT.bam -p /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_1_temporary_peaks.narrowpeak -t 4 -x C2
+
+/Users/masonsweat/HiChiP/enrichment_stats.sh -g /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/mm10.genome -b /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/KO_1/KO1_mapped.PT.bam -p /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_1_temporary_peaks.narrowpeak -t 4 -x KO1
+
+/Users/masonsweat/HiChiP/enrichment_stats.sh -g /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/mm10.genome -b /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/KO_2/KO2_mapped.PT.bam -p /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_1_temporary_peaks.narrowpeak -t 4 -x KO2
+
+#try it with bedfile
+
+cut -f1,2,3 /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_1_temporary_peaks.narrowpeak > peaks.bed
+
+#try to generate an index file for the beds so this works? (	THIS WORKS!)
+samtools index /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_1/C1_mapped.PT.bam
+
+
+cd /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_1/
+samtools index /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_1/C1_mapped.PT.bam
+python3 /Users/masonsweat/HiChiP/plot_chip_enrichment_bed.py -bam /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_1/C1_mapped.PT.bam -peaks /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/peaks.bed -output control1_enrichment.png
+
+cd /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_2/ \
+samtools index /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_2/C2_mapped.PT.bam \
+python3 /Users/masonsweat/HiChiP/plot_chip_enrichment_bed.py -bam /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_2/C2_mapped.PT.bam -peaks /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/peaks.bed -output control2_enrichment.png \
+
+cd /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/KO_1/ \
+samtools index /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/KO_1/KO1_mapped.PT.bam \
+python3 /Users/masonsweat/HiChiP/plot_chip_enrichment_bed.py -bam /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/KO_1/KO1_mapped.PT.bam -peaks /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/peaks.bed -output KO1_enrichment.png \
+
+cd /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/KO_2/ \
+samtools index /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/KO_2/KO2_mapped.PT.bam \
+python3 /Users/masonsweat/HiChiP/plot_chip_enrichment_bed.py -bam /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/KO_2/KO2_mapped.PT.bam -peaks /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/peaks.bed -output KO2_enrichment.png \
+
+
+### Create bigwig files from the BAM files
+bamCoverage --bam /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_1/C1_mapped.PT.bam -o /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_1/C1.bw \
+    --binSize 10
+    --normalizeUsing RPGC
+    --effectiveGenomeSize 2150570000
+    --ignoreForNormalization chrX
+    --extendReads
+
+bamCoverage --bam /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_2/C2_mapped.PT.bam -o /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_2/C2.bw \
+    --binSize 10
+    --normalizeUsing RPGC
+    --effectiveGenomeSize 2150570000
+    --ignoreForNormalization chrX
+    --extendReads
+
+bamCoverage --bam /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/KO_1/KO1_mapped.PT.bam -o /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_2/KO1.bw \
+    --binSize 10
+    --normalizeUsing RPGC
+    --effectiveGenomeSize 2150570000
+    --ignoreForNormalization chrX
+    --extendReads
+    
+    bamCoverage --bam /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/KO_2/KO2_mapped.PT.bam -o /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/KO_2/KO2.bw \
+    --binSize 10
+    --normalizeUsing RPGC
+    --effectiveGenomeSize 2150570000
+    --ignoreForNormalization chrX
+    --extendReads
+
+### Generating contact matrix
+  
+java -Xmx48000m  -jar /Users/masonsweat/HiChiP/juicertools.jar pre --threads 4 /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_1/mapped.pairs C1.hic mm10 -v True
+
+java -Xmx48000m  -Djava.awt.headless=true -jar /Users/masonsweat/HiChiP/juicertools.jar pre --threads 4 /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/control_2/mapped.pairs C2.hic  mm10 -v True
+java -Xmx48000m  -Djava.awt.headless=true -jar /Users/masonsweat/HiChiP/juicertools.jar pre --threads 4 /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/KO_1/mapped.pairs KO1.hic mm10 -v True
+java -Xmx48000m  -Djava.awt.headless=true -jar /Users/masonsweat/HiChiP/juicertools.jar pre --threads 4 /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5/FASTQ/KO_2/mapped.pairs KO2.hic mm10 -v True
+
+### Generating contact matrix for deepseq files
+
+java -Xmx48000m  -jar /Users/masonsweat/HiChiP/juicertools.jar pre --threads 4 /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5_deepseq/RunHiC/Con1/mapped.pairs C1.hic mm10 -v True
+
+java -Xmx48000m  -Djava.awt.headless=true -jar /Users/masonsweat/HiChiP/juicertools.jar pre --threads 4 /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5_deepseq/RunHiC/Con2/mapped.pairs C2.hic  mm10 -v True
+java -Xmx48000m  -Djava.awt.headless=true -jar /Users/masonsweat/HiChiP/juicertools.jar pre --threads 4 /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5_deepseq/RunHiC/KO1/mapped.pairs KO1.hic mm10 -v True
+java -Xmx48000m  -Djava.awt.headless=true -jar /Users/masonsweat/HiChiP/juicertools.jar pre --threads 4 /Users/masonsweat/Desktop/NGS_analysis/HiChIP_analysis/TBX5_deepseq/RunHiC/KO2/mapped.pairs KO2.hic mm10 -v True
+
+#### Make the H3K27 plots
+cd /lab-share/Cardio-Pu-e2/Public/ch220446_Mason2/hichip2/RunHIC/plot
+
+computeMatrix scale-regions -S /lab-share/Cardio-Pu-e2/Public/ch220446_Mason2/hichip2/RunHIC/Con1/C1.bw \
+ /lab-share/Cardio-Pu-e2/Public/ch220446_Mason2/hichip2/RunHIC/Con2/C2.bw \
+ /lab-share/Cardio-Pu-e2/Public/ch220446_Mason2/hichip2/RunHIC/KO1/KO1.bw \
+ /lab-share/Cardio-Pu-e2/Public/ch220446_Mason2/hichip2/RunHIC/KO2/KO2.bw -R /lab-share/Cardio-Pu-e2/Public/ch220446_Mason2/hichip2/RunHIC/bed/ataccon1vaf2.bed -a 5000 -b 5000  -o multiplecompare.matrix.gz
+plotProfile -m multiplecompare.matrix.gz  -out Con_regions_H3k27ac.pdf --plotTitle 'H3K27ac_Con_regions' --startLabel peak_Start --endLabel peak_end --numPlotsPerRow 1 --perGroup
+plotHeatmap -m multiplecompare.matrix.gz  -out con_regions_H3k27ac_heat.pdf --plotTitle 'H3K27ac_Con_regions' --startLabel peak_Start --endLabel peak_end --colorMap viridis
+
+
+
+computeMatrix scale-regions -S /lab-share/Cardio-Pu-e2/Public/ch220446_Mason2/hichip2/RunHIC/Con1/C1.bw \
+ /lab-share/Cardio-Pu-e2/Public/ch220446_Mason2/hichip2/RunHIC/Con2/C2.bw \
+ /lab-share/Cardio-Pu-e2/Public/ch220446_Mason2/hichip2/RunHIC/KO1/KO1.bw \
+ /lab-share/Cardio-Pu-e2/Public/ch220446_Mason2/hichip2/RunHIC/KO2/KO2.bw -R /lab-share/Cardio-Pu-e2/Public/ch220446_Mason2/hichip2/RunHIC/bed/atacaf2vcon1_GREAT.bed -a 5000 -b 5000  -o multiplecompare1.matrix.gz
+plotProfile -m multiplecompare1.matrix.gz  -out KO_regions_H3k27ac.pdf --plotTitle 'H3K27ac_KO_regions' --startLabel peak_Start --endLabel peak_end --numPlotsPerRow 1 --perGroup
+plotHeatmap -m multiplecompare1.matrix.gz  -out KO_regions_H3k27ac_heat.pdf --plotTitle 'H3K27ac_KO_regions' --startLabel peak_Start --endLabel peak_end --colorMap viridis

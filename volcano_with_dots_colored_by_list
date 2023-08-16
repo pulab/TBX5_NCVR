@@ -1,0 +1,74 @@
+## code written in R
+## creates a volcano plot with dots colored by genes in a list
+## requires a .csv file of gene list with heading 'gene' to work
+
+## step1 is to create a list of DEGs using Seurat find markers
+## code below is for basic volcano using the list of DEGs created. Change 'ident.1' and 'ident.2' to the names of clusters you want to compare.
+library(EnhancedVolcano)
+DefaultAssay(AFmulti)<- 'RNA'
+RNACon1VCon4 <- FindMarkers(AFmulti, slot = 'data', ident.1 = "Con_myocyte1", ident.2 = 'Con_myocyte4', only.pos=FALSE,logfc.threshold = 0.0 )
+EnhancedVolcano(RNACon1VCon4,
+                lab = rownames(RNACon1VCon4),
+                title = 'Con_Myocyte1 Versus Con_myocyte4',
+                x = 'avg_log2FC',
+                y = 'p_val',
+                xlab = bquote(~Log[2]~ 'fold change'),
+                FCcutoff = 1,
+                pointSize = 1.0,
+                labSize = 4.0,
+                labCol = 'black',
+                labFace = 'bold',
+                selectLab = c('Ttn', 'Ryr2', 'Myh6', 'Atp2a2'),
+                boxedLabels = TRUE,
+                colAlpha = 4/5,
+                legendPosition = 'top',
+                legendLabSize = 14,
+                legendIconSize = 4.0,
+                drawConnectors = TRUE,
+                widthConnectors = 0.5,
+                raster = FALSE,
+                colConnectors = 'black')
+
+  ## now take basic volcano and add colors based on genes being in a list:
+
+genetype1 <- share
+genetype2 <- ventpeaks
+
+library(scales)
+keyvals <- ifelse(
+  bulk$gene %in% genetype1$gene, 'purple',
+  
+  mycol)
+keyvals[is.na(keyvals)] <- mycol
+  names(keyvals)[keyvals == 'purple'] <- 'gene list'
+names(keyvals)[keyvals == mycol] <- 'Non-ident.'
+
+p1 <- EnhancedVolcano(bulk,
+                      lab = rownames(bulk),
+                      x = 'log2_fold_change_WT',
+                      y = 'padj',
+                      selectLab = c('Nppa', 'Myl7', 'Scn5a', 'Myl4', 'Fgf12', 'Kcnj3', 'Psd3', 'Rp1', 'Pdn', 'Nav3', 'Tmem163'),
+                      xlab = bquote(~Log[2]~ 'fold change'),
+                      title = 'genes linked to shared SEs',
+                      #  pCutoff = 10e-14,
+                      # FCcutoff = 1.0,
+                      pointSize = 1.5,
+                      labSize = 0,
+                      # shapeCustom = keyvals.shape,
+                      colCustom = keyvals,
+                      colAlpha = 1,
+                      legendLabSize = 5,
+                      legendPosition = 'top',
+                      legendIconSize = 5.0,
+                      drawConnectors = FALSE,
+                      FCcutoff = 0.5,
+                      widthConnectors = 0.5,
+                      colConnectors = 'grey50',
+                      gridlines.major = TRUE,
+                      gridlines.minor = FALSE,
+                      border = 'partial',
+                      borderWidth = 1.5,
+                      borderColour = 'black')
+p1
+  
+  

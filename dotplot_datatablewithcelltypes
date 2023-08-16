@@ -1,0 +1,52 @@
+## R code for multiome object
+## code used to produce Figure 3 in the paper
+## used to classify each cluster (based on aCM cell types expected) and then to make a data table showing number of nuclei in each cluster
+dot <-DotPlot(
+  AFmulti,
+  cols = c("blue", "red"),
+  features = c('Tnnt2', 'Ryr2', 'Mybpc3',  #cardiomyocyte
+               'Pdgfra', 'Col1a2', 'Col5a1', #fibroblast
+               'Pdgfrb', 'Trpc3', 'Rgs5',    #Pericyte
+               'Pecam1', 'Cdh5', 'Cav1', # Endothelial
+               'Eng', 'Cdh11', 'Npr3', #Endocardium ## https://www.ahajournals.org/doi/10.1161/circresaha.116.308749 Npr3 https://pubmed.ncbi.nlm.nih.gov/32364545/
+               'Wt1', 'Muc16', 'Sema3d',   #epicardium
+               'Fabp4', 'Acaca', 'Cidec',     #adipose #Redone looks good
+               'Nrxn1', 'Ncam1', 'Kcna1',  #Neuron
+                 'Msr1', 'Cd163', 'Mrc1',  #Macrophage 
+               'Top2a', 'Mki67', 'Knl1',   #Neutrophil
+               'Themis', 'Skap1', 'Satb1', #Tmem #Themis https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2848698/
+               'Ighm', 'Pax5', 'Ptprc'        # B cell #Ptprc = CD45
+              
+               ),
+  dot.min = 0,
+  dot.scale = 8,
+  group.by = NULL,
+  split.by = NULL,
+  idents = NULL,
+  scale = TRUE,
+  scale.by = "radius",
+  scale.min = NA,
+  scale.max = NA,
+)
+dot + theme(axis.text.x = element_text(angle = 45, hjust=1))+coord_flip()
+
+### Make a table to show cell type by sample input
+library(data.table)
+library(magrittr)
+md <- AFmulti@meta.data %>% as.data.table
+md[, .N, by = c("dataset", "CellType")]
+
+answer <- md[, .N, by = c("dataset", "CellType")] %>% dcast(., dataset ~ CellType, value.var = "N")
+write.csv(answer, file = '~/Desktop/NGS_analysis/AF_Multiome/clustering results excel/cellclusterbreakdown.csv')
+
+
+## at this step, you can take the output and make a stacked bar chart to add over the dot plot. 
+## example stacked bar chart code below
+  ggplot(data = clustertable, aes(x= Cluster,  y=Percent, fill = Source))+ 
+  geom_bar(stat = 'identity') +
+ # theme(axis.title = element_text(size = 30)) + 
+  #theme(text = element_text(size = 30))+ 
+# theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+ theme(axis.title.x=element_blank()) + #remove x axis labels
+       theme (axis.title.y=element_blank()  #remove y axis labels
+  )

@@ -1,0 +1,371 @@
+## This code was used to process multiome data
+## Code is written in R languate
+## email me at masonsweat@gmail.com with any questions
+## cluster and merging
+## takes outputs from cell ranger to create multiome object
+library(Seurat)
+library(JASPAR2020)
+library(TFBSTools)
+library(BSgenome.Mmusculus.UCSC.mm10)
+library(patchwork)
+library(EnsDb.Mmusculus.v79)
+library(BSgenome.Mmusculus.UCSC.mm10)
+library(stringr)
+library(ggplot2)
+library(SeuratDisk)
+library(GenomicRanges)
+library(dplyr)
+library(patchwork)
+set.seed(1234)
+
+annotation <- GetGRangesFromEnsDb(ensdb = EnsDb.Mmusculus.v79)
+ucsc.levels <- str_replace(string=paste("chr",seqlevels(annotation),sep=""), pattern="chrMT", replacement="chrM")
+seqlevels(annotation) <- ucsc.levels
+
+setwd('~/Desktop/NGS_analysis/AF_Multiome/DataFiles/Combined_ATAC_Peaks')
+# read in peak sets
+peaks.AF1 <- read.table(
+  file = "AF1_atac_peaks.bed",
+  col.names = c("chr", "start", "end")
+)
+peaks.AF2 <- read.table(
+  file = "AF2_atac_peaks.bed",
+  col.names = c("chr", "start", "end")
+)
+peaks.Con1 <- read.table(
+  file = "Con1_atac_peaks.bed",
+  col.names = c("chr", "start", "end")
+)
+peaks.Con2 <- read.table(
+  file = "Con2_atac_peaks.bed",
+  col.names = c("chr", "start", "end")
+)
+
+# convert to genomic ranges
+gr.AF1 <- makeGRangesFromDataFrame(peaks.AF1)
+gr.AF2 <- makeGRangesFromDataFrame(peaks.AF2)
+gr.Con1 <- makeGRangesFromDataFrame(peaks.Con1)
+gr.Con2 <- makeGRangesFromDataFrame(peaks.Con2)
+
+# Create a unified set of peaks to quantify in each dataset
+combined.peaks <- reduce(x = c(gr.AF1, gr.AF2, gr.Con1, gr.Con2))
+
+# Filter out bad peaks based on length
+peakwidths <- width(combined.peaks)
+combined.peaks <- combined.peaks[peakwidths  < 10000 & peakwidths > 20]
+combined.peaks
+
+#####load metadata
+# load metadata
+setwd('~/Desktop/NGS_analysis/AF_Multiome/DataFiles/Combined_singlecell_CSV')
+md.AF1 <- read.table(
+  file = "AF1_per_barcode_metrics.csv",
+  stringsAsFactors = FALSE,
+  sep = ",",
+  header = TRUE,
+  row.names = 1
+)[-2, ] # remove the first row
+
+md.AF2 <- read.table(
+  file = "AF2_per_barcode_metrics.csv",
+  stringsAsFactors = FALSE,
+  sep = ",",
+  header = TRUE,
+  row.names = 1
+)[-2, ]
+
+md.Con1 <- read.table(
+  file = "Con1_per_barcode_metrics.csv",
+  stringsAsFactors = FALSE,
+  sep = ",",
+  header = TRUE,
+  row.names = 1
+)[-2, ]
+
+md.Con2<- read.table(
+  file = "Con2_per_barcode_metrics.csv",
+  stringsAsFactors = FALSE,
+  sep = ",",
+  header = TRUE,
+  row.names = 1
+)[-2, ]
+
+md.AF1 <- md.AF1[md.AF1$atac_raw_reads > 250, ]
+md.AF2 <- md.AF2[md.AF2$atac_raw_reads > 250, ]
+md.Con1 <- md.Con1[md.Con1$atac_raw_reads > 250, ]
+md.Con2 <- md.Con2[md.Con2$atac_raw_reads > 250, ] # sequenced deeper so set higher cutoff
+
+
+setwd('~/Desktop/NGS_analysis/AF_Multiome/DataFiles/Combined_data_file')
+# create fragment objects
+frags.AF1 <- CreateFragmentObject(
+  path = "AF1_atac_fragments.tsv.gz",
+  cells = rownames(md.AF1)
+)
+frags.AF2 <- CreateFragmentObject(
+  path = "AF2_atac_fragments.tsv.gz",
+  cells = rownames(md.AF2)
+)
+frags.Con1 <- CreateFragmentObject(
+  path = "Con1_atac_fragments.tsv.gz",
+  cells = rownames(md.Con1)
+)
+
+frags.Con2 <- CreateFragmentObject(
+  path = "Con2_atac_fragments.tsv.gz",
+  cells = rownames(md.Con2)
+)
+
+
+AF1.counts <- FeatureMatrix(
+  fragments = frags.AF1,
+  features = combined.peaks,
+  cells = rownames(md.AF1)
+)
+
+AF2.counts <- FeatureMatrix(
+  fragments = frags.AF2,
+  features = combined.peaks,
+  cells = rownames(md.AF2)
+)
+
+Con1.counts <- FeatureMatrix(
+  fragments = frags.Con1,
+  features = combined.peaks,
+  cells = rownames(md.Con1)
+)
+
+Con2.counts <- FeatureMatrix(
+  fragments = frags.Con2,
+  features = combined.peaks,
+  cells = rownames(md.Con2)
+)
+
+#Create Seurat objects
+# Repeat the following 4 times by changing the folder to create 4 Seurat objects
+setwd('~/Desktop/NGS_analysis/AF_Multiome/DataFiles/Rawbarcodematrix')
+counts <- Read10X_h5("AF1_raw_feature_bc_matrix.h5")
+# create a Seurat object containing the RNA adata
+AF1_assay <- CreateChromatinAssay(AF1.counts, fragments = frags.AF1, annotation = annotation, min.features = -1)
+AF1 <- CreateSeuratObject(AF1_assay, assay = "ATAC", meta.data=md.AF1)
+AF1[["RNA"]]<- CreateAssayObject(counts=counts$'Gene Expression'[,colnames(AF1)])
+AF1
+
+setwd('~/Desktop/NGS_analysis/AF_Multiome/DataFiles/Rawbarcodematrix')
+counts <- Read10X_h5("AF2_raw_feature_bc_matrix.h5")
+# create a Seurat object containing the RNA adata
+AF2_assay <- CreateChromatinAssay(AF2.counts, fragments = frags.AF2, annotation = annotation, min.features =-1)
+AF2 <- CreateSeuratObject(AF2_assay, assay = "ATAC", meta.data=md.AF2)
+AF2[["RNA"]]<- CreateAssayObject(counts=counts$'Gene Expression'[,colnames(AF2)])
+AF2
+
+setwd('~/Desktop/NGS_analysis/AF_Multiome/DataFiles/Rawbarcodematrix')
+counts <- Read10X_h5("Con1_raw_feature_bc_matrix.h5")
+# create a Seurat object containing the RNA adata
+Con1_assay <- CreateChromatinAssay(Con1.counts, fragments = frags.Con1, annotation = annotation, min.features =-1)
+Con1 <- CreateSeuratObject(Con1_assay, assay = "ATAC", meta.data=md.Con1)
+Con1[["RNA"]]<- CreateAssayObject(counts=counts$'Gene Expression'[,colnames(Con1)])
+Con1
+
+setwd('~/Desktop/NGS_analysis/AF_Multiome/DataFiles/Rawbarcodematrix')
+counts <- Read10X_h5("Con2_raw_feature_bc_matrix.h5")
+# create a Seurat object containing the RNA adata
+Con2_assay <- CreateChromatinAssay(Con2.counts, fragments = frags.Con2, annotation = annotation, min.features =-1)
+Con2 <- CreateSeuratObject(Con2_assay, assay = "ATAC", meta.data=md.Con2)
+Con2[["RNA"]]<- CreateAssayObject(counts=counts$'Gene Expression'[,colnames(Con2)])
+Con2
+#######
+###### QC
+#######
+## Calcualte TSS.enrichment, nucleosome_signal, and % mito
+DefaultAssay(AF1) <- 'ATAC'
+DefaultAssay(AF2) <- 'ATAC'
+DefaultAssay(Con1) <- 'ATAC'
+DefaultAssay(Con2) <- 'ATAC'
+
+AF1 <- NucleosomeSignal(AF1)
+AF2 <- NucleosomeSignal(AF2)
+Con1 <- NucleosomeSignal(Con1)
+Con2 <- NucleosomeSignal(Con2)
+
+AF1 <- TSSEnrichment(AF1)
+AF2 <- TSSEnrichment(AF2)
+Con1 <- TSSEnrichment(Con1)
+Con2 <- TSSEnrichment(Con2)
+
+DefaultAssay(AF1)<-'RNA'
+AF1[["percent.mito"]]<-PercentageFeatureSet(AF1, pattern = "^mt-")
+
+DefaultAssay(AF2)<-'RNA'
+AF2[["percent.mito"]]<-PercentageFeatureSet(AF2, pattern = "^mt-")
+DefaultAssay(Con1)<-'RNA'
+Con1[["percent.mito"]]<-PercentageFeatureSet(Con1, pattern = "^mt-")
+DefaultAssay(Con2)<-'RNA'
+Con2[["percent.mito"]]<-PercentageFeatureSet(Con2, pattern = "^mt-")
+
+
+VlnPlot(
+  object = AF1,
+  features = c("nCount_RNA", "nCount_ATAC", 'TSS.enrichment', 'percent.mito'),
+  ncol = 4,
+  pt.size = 0
+)
+VlnPlot(
+  object = AF2,
+  features = c("nCount_RNA", "nCount_ATAC", 'TSS.enrichment', 'percent.mito'),
+  ncol = 4,
+  pt.size = 0
+)
+VlnPlot(
+  object = Con1,
+  features = c("nCount_RNA", "nCount_ATAC", 'TSS.enrichment', 'percent.mito'),
+  ncol = 4,
+  pt.size = 0
+)
+VlnPlot(
+  object = Con2,
+  features = c("nCount_RNA", "nCount_ATAC", 'TSS.enrichment', 'percent.mito'),
+  ncol = 4,
+  pt.size = 0
+)
+DefaultAssay(AF1)<-'RNA'
+summary(colSums(AF1))
+summary(colSums(AF2))
+summary(colSums(Con1))
+summary(colSums(Con2))
+
+DefaultAssay(AF1)<-'ATAC'
+DefaultAssay(AF2)<-'ATAC'
+DefaultAssay(Con1)<-'ATAC'
+DefaultAssay(Con2)<-'ATAC'
+summary(colSums(AF1))
+summary(colSums(AF2))
+summary(colSums(Con1))
+summary(colSums(Con2))
+
+mean(AF1@meta.data$nCount_ATAC)
+mean(AF1@meta.data$nFeature_ATAC)
+mean(AF1@meta.data$nCount_RNA)
+mean(AF1@meta.data$nFeature_RNA)
+
+mean(AF2@meta.data$nCount_ATAC)
+mean(AF2@meta.data$nFeature_ATAC)
+mean(AF2@meta.data$nCount_RNA)
+mean(AF2@meta.data$nFeature_RNA)
+
+mean(Con1@meta.data$nCount_ATAC)
+mean(Con1@meta.data$nFeature_ATAC)
+mean(Con1@meta.data$nCount_RNA)
+mean(Con1@meta.data$nFeature_RNA)
+
+mean(Con2@meta.data$nCount_ATAC)
+mean(Con2@meta.data$nFeature_ATAC)
+mean(Con2@meta.data$nCount_RNA)
+mean(Con2@meta.data$nFeature_RNA)
+
+median(Con2@meta.data$nCount_ATAC)
+median(Con2@meta.data$nFeature_ATAC)
+median(Con2@meta.data$nCount_RNA)
+median(Con2@meta.data$nFeature_RNA)
+
+
+View(AFmulti2@meta.data)
+####Subset only good cells
+AF1 <- subset(
+  x = AF1,
+  subset = nCount_ATAC < 50000 &
+    nCount_RNA < 35000 &
+    nCount_ATAC > 250 &
+    nCount_RNA > 250 &
+    nucleosome_signal < 2 &
+    TSS.enrichment > 1 &
+    percent.mito < 25
+)
+AF1
+AF2 <- subset(
+  x = AF2,
+  subset = nCount_ATAC < 25000 &
+    nCount_RNA < 35000 &
+    nCount_ATAC > 250 &
+    nCount_RNA > 250 &
+    nucleosome_signal < 2 &
+    TSS.enrichment > 1 &
+    percent.mito < 25
+)
+AF2
+Con1 <- subset(
+  x = Con1,
+  subset = nCount_ATAC < 25000 &
+    nCount_RNA < 35000 &
+    nCount_ATAC > 250 &
+    nCount_RNA > 250 &
+    nucleosome_signal < 2 &
+    TSS.enrichment > 1 &
+    percent.mito < 25
+)
+Con1
+Con2 <- subset(
+  x = Con2,
+  subset = nCount_ATAC < 25000 &
+    nCount_RNA < 35000 &
+    nCount_ATAC > 250 &
+    nCount_RNA > 250 &
+    nucleosome_signal < 2 &
+    TSS.enrichment > 1 &
+    percent.mito < 25
+)
+Con2
+
+saveRDS(AF1, file = "~/Desktop/NGS_analysis/AF_Multiome/03.01.22/Integrated_objects/newAF1.1", ascii = FALSE, version = NULL,
+        compress = TRUE, refhook = NULL)
+saveRDS(AF2, file = "~/Desktop/NGS_analysis/AF_Multiome/03.01.22/Integrated_objects/newAF2.1", ascii = FALSE, version = NULL,
+        compress = TRUE, refhook = NULL)
+saveRDS(Con1, file = "~/Desktop/NGS_analysis/AF_Multiome/03.01.22/Integrated_objects/newCon1.1", ascii = FALSE, version = NULL,
+        compress = TRUE, refhook = NULL)
+saveRDS(Con2, file = "~/Desktop/NGS_analysis/AF_Multiome/03.01.22/Integrated_objects/newCon2.1", ascii = FALSE, version = NULL,
+        compress = TRUE, refhook = NULL)
+AF1 <- readRDS('~/Desktop/NGS_analysis/AF_Multiome/03.01.22/Integrated_objects/newAF1')
+AF2 <- readRDS('~/Desktop/NGS_analysis/AF_Multiome/03.01.22/Integrated_objects/newAF2')
+Con1 <- readRDS('~/Desktop/NGS_analysis/AF_Multiome/03.01.22/Integrated_objects/newCon1')
+Con2 <- readRDS('~/Desktop/NGS_analysis/AF_Multiome/03.01.22/Integrated_objects/newCon2')
+### add dataset information
+AF1$dataset <- 'AF1'
+AF2$dataset <- 'AF2'
+Con1$dataset <- 'Con1'
+Con2$dataset <- 'Con2'
+
+AFmulti <- merge(AF1, y = list(AF2, Con1, Con2), project = "new")
+DefaultAssay(AFmulti) <- 'RNA'
+
+# RNA UMAP (old method, use SCT integration now)
+#normalize
+#AFmulti <- NormalizeData(AFmulti)
+#AFmulti <- FindVariableFeatures(AFmulti, selection.method = "vst", nfeatures = 2000)
+
+#This is too big for my computer, will need to repeat on E2 (This actually works if AFmulti is the only seurat loaded)
+#all.genes <- rownames(AFmulti)
+#AFmulti <- ScaleData(AFmulti, features = all.genes)
+###
+
+
+#### WNN vignet pipeline
+
+DefaultAssay(AFmulti) <- "RNA"
+AFmulti <- SCTransform(AFmulti, verbose = FALSE) %>% RunPCA() %>% RunUMAP(dims = 1:20, reduction.name = 'umap.rna', reduction.key = 'rnaUMAP_')
+
+DefaultAssay(AFmulti) <- "ATAC"
+AFmulti <- RunTFIDF(AFmulti)
+AFmulti <- FindTopFeatures(AFmulti, min.cutoff = 'q0')
+AFmulti <- RunSVD(AFmulti)
+AFmulti <- RunUMAP(AFmulti, reduction = 'lsi', dims = 2:15, reduction.name = "umap.atac", reduction.key = "atacUMAP_")
+
+AFmulti <- FindMultiModalNeighbors(AFmulti, reduction.list = list("pca", "lsi"), dims.list = list(1:15, 2:15))
+AFmulti <- RunUMAP(AFmulti, nn.name = "weighted.nn", reduction.name = "wnn.umap", reduction.key = "wnnUMAP_")
+AFmulti <- FindClusters(AFmulti, graph.name = "wsnn", algorithm = 1, verbose = FALSE, resolution = 0.8)
+
+
+p1 <- DimPlot(AFmulti, reduction = "umap.rna",  label = TRUE, label.size = 5.5, repel = TRUE) + ggtitle("RNA")
+p2 <- DimPlot(AFmulti, reduction = "umap.atac", label = TRUE, label.size = 5.5, repel = TRUE) + ggtitle("ATAC")
+p3 <- DimPlot(AFmulti, reduction = "wnn.umap",  label = TRUE, label.size = 5.5, repel = TRUE) + ggtitle("WNN")
+p1 + p2 + p3 & NoLegend() & theme(plot.title = element_text(hjust = 1))
+DimPlot(AFmulti, reduction = "wnn.umap", split.by = "dataset")

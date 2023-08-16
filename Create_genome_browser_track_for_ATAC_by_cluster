@@ -1,0 +1,76 @@
+#this involves first creating a list of cell barcodes and then using the Sinto program to extract the ATAC informationi
+#first step is in R, shown below for two different clusters
+
+#subset the combined seurat object by cell cluster identity
+cont <- subset(AFmulti, idents = "Myocyte_4")
+
+ko <- subset(AFmulti, idents = "Myocyte_5")
+# obtain a list of barcodes and append celltype, save as tab deliminated file
+cont_cells <- as.data.frame( WhichCells(cont))
+cont_cells[2] <- cont@meta.data$CellType
+write.csv(cont_cells, file = '~/Desktop/NGS_analysis/AF_Multiome/sinto/contmyocyte4.csv')
+
+ko_cells <- as.data.frame( WhichCells(ko))
+ko_cells[2] <- ko@meta.data$CellType
+write.csv(ko_cells, file = '~/Desktop/NGS_analysis/AF_Multiome/sinto/komyocyte5.csv')
+--------------------------------------------------------------------------------------------------------------------
+## the following is ran on command line
+##use excel to remove suffix appended to cell bar codes prior to running, as demonstrated
+
+#After I make the barcode files, I need to remove _X from the end that specified which dataset they were from using excel
+#excel command =LEFT(A1, LEN(A1)-2)
+
+cd /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/Con1/
+sinto filterbarcodes -b atac_possorted_bam.bam -c /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/contmyocyte4.tsv --outdir /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/Con1/
+
+cd /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/Con2/
+sinto filterbarcodes -b atac_possorted_bam.bam -c /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/contmyocyte4.tsv --outdir /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/Con2/
+
+cd /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/AF1/
+sinto filterbarcodes -b atac_possorted_bam.bam -c /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/komyocyte5.tsv --outdir /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/AF1/
+
+cd /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/AF2/
+sinto filterbarcodes -b atac_possorted_bam.bam -c /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/komyocyte5.tsv --outdir /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/AF2/
+
+##merge the resulting bam files
+
+samtools merge /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/finalbam/finalbam_control4.bam  /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/Con1/Con_myocyte4.bam /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/Con2/Con_myocyte4.bam
+
+samtools merge /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/finalbam/finalbamv2_KO5.bam  /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/AF1/AF_myocyte1.bam /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/AF2/AF_myocyte1.bam -f
+
+#index with samtools
+cd /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/finalbam/
+samtools index finalbam_control4.bam
+samtools index finalbamv2_KO5.bam
+
+
+### Making Bigwig files
+
+bamCoverage --bam /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/finalbam/finalbam_control4.bam -o /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/finalbam/myocyte4_ATAC_RPKM.bw \
+    --verbose \
+    --binSize 10 \
+    --normalizeUsing RPCG \
+    --effectiveGenomeSize 2150570000 \
+    --ignoreForNormalization chrX 
+
+bamCoverage --bam /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/finalbam/finalbamv2_KO5.bam -o /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/finalbam/myocyte5_ATAC_new.bw \
+    --verbose \
+    --binSize 10 \
+    --normalizeUsing RPGC \
+    --effectiveGenomeSize 2150570000 \
+    --ignoreForNormalization chrX 
+    
+bamCoverage --bam /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/finalbam/finalbam_KO.bam -o /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/finalbam/myocyte6_ATAC_RPKM.bw \
+    --verbose \
+    --binSize 10 \
+    --normalizeUsing RPKM \
+    --effectiveGenomeSize 2150570000 \
+    --ignoreForNormalization chrX 
+    
+bamCoverage --bam /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/finalbam/finalbam_control.bam -o /Users/masonsweat/Desktop/NGS_analysis/AF_Multiome/sinto/finalbam/myocyte1_ATAC_RPKM.bw \
+    --verbose \
+    --binSize 10 \
+    --normalizeUsing RPKM \
+    --effectiveGenomeSize 2150570000 \
+    --ignoreForNormalization chrX 
+

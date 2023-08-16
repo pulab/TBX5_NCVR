@@ -1,0 +1,35 @@
+#R code
+#creates list of differentially accessible regions between two clusters
+#takes list of da_peaks and plots them in order of rank
+#used to create S shape in figure 5 of paper
+#set object to ATAC
+DefaultAssay(AFmulti)<- 'ATAC'
+
+#identify DARs between two clusters
+da_peaks <- FindMarkers(
+  object = AFmulti,
+  ident.1 = 'Myocyte_1',
+  ident.2 = 'Myocyte_6',
+  only.pos = FALSE,
+  test.use = 'LR',
+  min.pct = 0.15,
+  logfc.threshold = 0,
+  latent.vars = 'nCount_ATAC'
+)
+write.csv(da_peaks, '~/Desktop/NGS_analysis/AF_Multiome/121122/AllDApeaks.csv')
+
+#Make S-graph  
+data1 <- da_peaks
+data1$row_names <- row.names(data1)
+data1[6] <- 'Peak'
+                     
+data1$order_fc <- rank(-as.numeric(as.character(data1$avg_log2FC)))######from max to min
+#data1$order_fc <- rank(as.numeric(as.character(data1$log2fc)))   ##### from min to max
+ggplot(data1,aes(x=order_fc,y=avg_log2FC, color= p_val_adj<0.05
+                 ))+
+  geom_point(size=2)+
+  geom_hline(yintercept = 0.7,color="red",linetype="dashed")+
+  geom_hline(yintercept = -0.7,color="red",linetype="dashed")+
+  #scale_color_manual(breaks = c("type1", "type2"), values=c("red", "gray"))+
+  theme_classic()
+  #geom_text(aes(0,round(FDR_A_0.95,3),label = round(FDR_A_0.95,3), vjust = -1))

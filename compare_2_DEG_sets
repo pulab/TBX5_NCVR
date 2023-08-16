@@ -1,0 +1,54 @@
+#R code
+#takes two lists of DEGs and P.values, combines them into 1 DF, and makes a dotplot colored by signifigance in each dataset
+#at the end, calculates pearson correlation
+#repeat process with df = filtered(df, sig == 'both signficant') if you want to plot only sig DEGs from both datasets
+bulkVsn <- inner_join(Myo1vMyo6, bulk, by= 'gene')
+df <- data.frame(x = bulkVsn$avg_log2FC, y = -bulkVsn$log2FoldChange, 
+                 sig1 = bulkVsn$p_val_adj, sig2 = bulkVsn$padj, gene = bulkVsn$gene)
+
+# Create a new column to indicate the significance level of each data point
+df$sig <- ifelse(df$sig1 < 0.05 & df$sig2 < 0.05, "Both significant",
+                 ifelse(df$sig1 < 0.05 & df$sig2 >= 0.05, "Column1 significant",
+                        ifelse(df$sig1 >= 0.05 & df$sig2 < 0.05, "Column2 significant",
+                               "Not significant")))
+setwd('~/Desktop/NGS_analysis/AF_Multiome/bulkdataVme/new_TBX5OE_Vs_Me')
+##save DF for analysis
+write.csv(df, file = 'newdataframe.csv')
+###Get P value of only sig
+#df = df[df$sig == "Both significant", ]
+
+
+# Create the dot plot using ggplot2
+ggplot(df, aes(x = x, y = y)) +
+  geom_point(aes(color = sig), size = 1) +
+  scale_color_manual(values = c("Both significant" = "red", 
+                                "Column1 significant" = "blue",
+                                "Column2 significant" = "green",
+                                "Not significant" = "black")) +
+  theme(axis.line = element_line(colour = "black", size = 1),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line.x = element_line(colour = "black", size = 1.2),
+        axis.line.y = element_line(colour = "black", size = 1.2),
+        panel.border = element_blank(),
+        plot.background = element_blank()) +
+  scale_x_continuous(limits = c(-4, 4), breaks = seq(0, 1, by = 1))
+
+## calculate the pearson correlation coefficient (.19)
+
+library(dplyr)
+
+df = filter(df, sig == "Both significant")
+
+correlation = cor.test(df$x, df$y)
+
+print(correlation)
+
+p_value <- cor.test(df$x, df$y)$p.value
+
+print(p_value)
